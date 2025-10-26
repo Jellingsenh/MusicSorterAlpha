@@ -1,6 +1,6 @@
 // Joshua Haynes
 // Spotify music de-duplicator
-// 22 October 2025
+// 22-26 October 2025
 // Maven project, Java 21
 
 package main;
@@ -31,9 +31,9 @@ import org.json.JSONTokener;
 public class MusicSorter {
 	
 	public static boolean askToUseCaches = true; // if false, automatically uses them
-	public static boolean logging = false; // show log statements
 	public static boolean askToMakePlaylists = true; // if false, automatically makes them
 	
+	public static boolean logging = false; // show log statements
 	public static boolean testingMode = false; // limits number of API calls to save time
 
 	public static String authToken;
@@ -47,16 +47,26 @@ public class MusicSorter {
 	public final static String playlistLocalSongsFileName = "src/cache/playlistLocalSongs.txt";
 	public final static String playlistsFileName = "src/cache/playlists.txt";
 	
+	public static int retryCount;
+
 	public static Map<String,Track> likedSongsMap;
 	public static Set<String> likedSongsIdSet;
 	public static boolean listFullyPopulated = false;
 	
 	public static Set<String> unplayableSongUrisSet;
 	
-//	public static Set<String> localSongUrisSet;
-	public static int localCount;
+
 	
 	public static Set<String> duplicateSongUrisSet;
+	
+	public static int totalCount = 0;
+	public static int likedCount = 0;
+	public static int unplayableCount = 0;
+	public static int duplicateCount = 0;
+	public static int playlistsCount = 0;
+	public static int unlikedCount = 0;
+	public static int playlistsWithLocalTracksCount = 0;
+	public static int localCount = 0;
 	
 	public static Set<Playlist> playlistsSet;
 	public static Map<String,Set<String>> playlistLocalsMap;
@@ -73,13 +83,12 @@ public class MusicSorter {
 	public static final int maxPlaylistSize = 9000;
 
 	public static void main(String[] args) {
+		retryCount = 0;
+		
 		likedSongsMap = new HashMap<String,Track>();
 		likedSongsIdSet = new HashSet<String>();
 		
 		unplayableSongUrisSet = new HashSet<String>();
-		
-//		localSongUrisSet = new HashSet<String>();
-		localCount = 0;
 		
 		duplicateSongUrisSet = new HashSet<String>();
 		
@@ -89,7 +98,7 @@ public class MusicSorter {
 		
 		System.out.println("~ Music Sorter Alpha ~\n");
 		if (testingMode) {
-			System.out.println("[Testing mode enabled]");
+			System.out.println("[Testing mode enabled]\n");
 		}
 		
 		getProperties();
@@ -148,8 +157,19 @@ public class MusicSorter {
 			findUnlikedPlaylistTracks();
 		}
 		
+		if (logging) {
+			System.out.println("Total songs (from your liked songs): " + totalCount);
+			System.out.println("Liked songs: " + likedCount);
+			System.out.println("Unplayable songs: " + unplayableCount);
+			System.out.println("Duplicate songs: " + duplicateCount);
+			
+			System.out.println("Playlists: " + playlistsCount);
+			System.out.println("Unliked songs: " + unlikedCount);
+			System.out.println("Playlists with local tracks: " + playlistsWithLocalTracksCount);
+			System.out.println("Local songs: " + localCount);
+		}
+		
 		// create new playlists (size max 9,000)
-
 		if (askToMakePlaylists) {
 			System.out.println("\nCreate new playlists? (y/n): ");
 		    String yesOrNo = input.next();
@@ -191,8 +211,8 @@ public class MusicSorter {
 		}
 	}
 	
-	public static boolean unlikedCacheExists() {
-		File f = new File(unlikedSongsFileName);
+	public static boolean playlistCacheExists() {
+		File f = new File(playlistsFileName);
 		if(f.exists() && !f.isDirectory()) { 
 		    return true;
 		} else {
@@ -200,8 +220,8 @@ public class MusicSorter {
 		}
 	}
 	
-	public static boolean playlistCacheExists() {
-		File f = new File(playlistsFileName);
+	public static boolean unlikedCacheExists() {
+		File f = new File(unlikedSongsFileName);
 		if(f.exists() && !f.isDirectory()) { 
 		    return true;
 		} else {
@@ -220,13 +240,13 @@ public class MusicSorter {
 		System.out.println("Caching ...");
 		
 		try{
+			oos2 = new ObjectOutputStream(new FileOutputStream(likedIdsFileName));
+		    oos2.writeObject(likedSongsIdSet);
+		    System.out.println(likedSongsIdSet.size() + " song ids cached.");
+		    
 		    oos = new ObjectOutputStream(new FileOutputStream(likedSongsFileName));
 		    oos.writeObject(likedSongsMap);
 		    System.out.println(likedSongsMap.size() + " liked songs cached.");
-		    
-		    oos2 = new ObjectOutputStream(new FileOutputStream(likedIdsFileName));
-		    oos2.writeObject(likedSongsIdSet);
-		    System.out.println(likedSongsIdSet.size() + " song ids cached.");
 		    
 		    oos3 = new ObjectOutputStream(new FileOutputStream(unplayableSongsFileName));
 		    oos3.writeObject(unplayableSongUrisSet);
@@ -306,7 +326,7 @@ public class MusicSorter {
 		    
 		    oos2 = new ObjectOutputStream(new FileOutputStream(playlistLocalSongsFileName));
 		    oos2.writeObject(playlistLocalsMap);
-		    System.out.println(playlistLocalsMap.size() + " playlists with a total of " + localCount+" local songs cached."); 
+		    System.out.println(playlistLocalsMap.size() + " playlists containing local songs, with a total of " + localCount + " local songs cached."); 
 		} catch (Exception ex) {
 		    ex.printStackTrace();
 		} finally {
@@ -338,21 +358,21 @@ public class MusicSorter {
 		System.out.println("\nRetrieving from cache ...");
 		
 		try {
+			objectinputstream4 = new ObjectInputStream(new FileInputStream(likedIdsFileName));
+		    likedSongsIdSet = (Set<String>) objectinputstream4.readObject();
+		    System.out.println("Loaded " + likedSongsIdSet.size() + " song ids from the cache."); 
+		    
 		    objectinputstream = new ObjectInputStream(new FileInputStream(likedSongsFileName));
 		    likedSongsMap = (Map<String,Track>) objectinputstream.readObject();
 		    System.out.println("Loaded " + likedSongsMap.size() + " liked songs from the cache."); 
+		    
+		    objectinputstream3 = new ObjectInputStream(new FileInputStream(unplayableSongsFileName));
+		    unplayableSongUrisSet = (Set<String>) objectinputstream3.readObject();
+		    System.out.println("Loaded " + unplayableSongUrisSet.size()+" unplayable songs from the cache.");
 
 		    objectinputstream2 = new ObjectInputStream(new FileInputStream(duplicateSongsFileName));
 		    duplicateSongUrisSet = (Set<String>) objectinputstream2.readObject();
-		    System.out.println("Loaded " + duplicateSongUrisSet.size()+" duplicate songs from the cache."); 
-
-		    objectinputstream3 = new ObjectInputStream(new FileInputStream(unplayableSongsFileName));
-		    unplayableSongUrisSet = (Set<String>) objectinputstream3.readObject();
-		    System.out.println("Loaded " + unplayableSongUrisSet.size()+" unplayable songs from the cache."); 
-
-		    objectinputstream4 = new ObjectInputStream(new FileInputStream(likedIdsFileName));
-		    likedSongsIdSet = (Set<String>) objectinputstream4.readObject();
-		    System.out.println("Loaded " + likedSongsIdSet.size() + " song ids from the cache."); 
+		    System.out.println("Loaded " + duplicateSongUrisSet.size()+" duplicate songs from the cache.");  
 		} catch (Exception e) {
 		    e.printStackTrace();
 		} finally {
@@ -387,43 +407,6 @@ public class MusicSorter {
 		}
 	}
 	
-	public static void retrieveUnlikedSongsFromCache() {
-		ObjectInputStream objectinputstream = null;
-		ObjectInputStream objectinputstream2 = null;
-		
-		System.out.println("\nRetrieving from cache ...");
-		
-		try {
-		    objectinputstream = new ObjectInputStream(new FileInputStream(unlikedSongsFileName));
-		    unlikedSongUrisSet = (Set<String>) objectinputstream.readObject();
-		    System.out.println("Loaded " + unlikedSongUrisSet.size() + " unliked songs from the cache."); 
-		    
-		    objectinputstream2 = new ObjectInputStream(new FileInputStream(playlistLocalSongsFileName));
-		    playlistLocalsMap = (Map<String, Set<String>>) objectinputstream2.readObject();
-		    for (Set<String> localsSet : playlistLocalsMap.values()) {
-		    	localCount += localsSet.size();
-		    }
-		    System.out.println("Loaded " + playlistLocalsMap.size() + " playlists with a total of " + localCount +" local songs from the cache."); 
-		} catch (Exception e) {
-		    e.printStackTrace();
-		} finally {
-		    if(objectinputstream != null){
-		        try {
-					objectinputstream.close();
-				} catch (IOException e) {
-					e.printStackTrace();
-				}
-		    } 
-		    if(objectinputstream2 != null){
-		        try {
-					objectinputstream2.close();
-				} catch (IOException e) {
-					e.printStackTrace();
-				}
-		    } 
-		}
-	}
-	
 	public static void retrievePlaylistsFromCache() {
 		ObjectInputStream objectinputstream = null;
 		
@@ -446,12 +429,49 @@ public class MusicSorter {
 		    } 
 		}
 	}
+	
+	public static void retrieveUnlikedSongsFromCache() {
+		ObjectInputStream objectinputstream = null;
+		ObjectInputStream objectinputstream2 = null;
+		
+		System.out.println("\nRetrieving from cache ...");
+		
+		try {
+		    objectinputstream = new ObjectInputStream(new FileInputStream(unlikedSongsFileName));
+		    unlikedSongUrisSet = (Set<String>) objectinputstream.readObject();
+		    System.out.println("Loaded " + unlikedSongUrisSet.size() + " unliked songs from the cache."); 
+		    
+		    objectinputstream2 = new ObjectInputStream(new FileInputStream(playlistLocalSongsFileName));
+		    playlistLocalsMap = (Map<String, Set<String>>) objectinputstream2.readObject();
+		    for (Set<String> localsSet : playlistLocalsMap.values()) {
+		    		localCount += localsSet.size();
+		    }
+		    System.out.println("Loaded " + playlistLocalsMap.size() + " playlists containing local songs, with a total of " + localCount +" local songs from the cache."); 
+		} catch (Exception e) {
+		    e.printStackTrace();
+		} finally {
+		    if(objectinputstream != null){
+		        try {
+					objectinputstream.close();
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+		    } 
+		    if(objectinputstream2 != null){
+		        try {
+					objectinputstream2.close();
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+		    } 
+		}
+	}
 
 	// Liked & unplayable songs functions:
 	
 	public static void populateLikedSongsList() {
 		try {
-			System.out.print("\nGetting liked songs from Spotify");
+			System.out.print("Getting liked songs from Spotify");
 			int offset = 0;
 			while (!listFullyPopulated) {
 				getLikedSongs(offset);
@@ -481,8 +501,16 @@ public class MusicSorter {
 		int responsecode = conn.getResponseCode();
 		
 		if (responsecode != 200) {
-		    throw new RuntimeException("HttpResponseCode: " + responsecode);
+			if (retryCount > 3) {
+				retryCount = 0;
+				throw new RuntimeException("(retried 3 times) HttpResponseCode: " + responsecode);
+			}
+			System.out.print("HttpResponseCode: " + responsecode + ", retrying getLikedSongs()...");
+			retryCount += 1;
+			getLikedSongs(offset); // retry recursively
 		} else {
+			retryCount = 0;
+			
 			JSONObject likedSongsJSON = new JSONObject(new JSONTokener(conn.getInputStream())); 
 			JSONArray tempLikedSongsArray = likedSongsJSON.getJSONArray("items");
 						
@@ -512,27 +540,36 @@ public class MusicSorter {
 					tempTrack.setArtists(tempArtists);
 					
 					// add Track to sets
+					totalCount += 1;
 				
-					if (!likedSongsIdSet.add(tempTrack.getTrackId())) { 
-						System.out.print("\nliked song "+tempTrack.getName()+" found, but failed to be added to the cache list.");
-						likedSongsIdSet.add(tempTrack.getTrackId()); // try again
+					if (!likedSongsIdSet.contains(tempTrack.getTrackId())) {
+						likedSongsIdSet.add(tempTrack.getTrackId());
 					}
 					
 					if (!tempTrack.isPlayable()) { 
-						if (!unplayableSongUrisSet.add(tempTrack.getUri())) { 
-							System.out.print("\nunplayable song "+tempTrack.getName()+" ("+tempTrack.getUri()+") found, but failed to be added to the cache list.");
-							unplayableSongUrisSet.add(tempTrack.getUri()); // try again
-						} else if (logging) { 
-							System.out.print("\nunplayable song "+tempTrack.getName()+" ("+tempTrack.getUri()+") found."); 
-							System.out.print("\nunplayable songs size: " + unplayableSongUrisSet.size());
+						if (!unplayableSongUrisSet.contains(tempTrack.getUri())) {
+							unplayableCount += 1;
+							unplayableSongUrisSet.add(tempTrack.getUri());
+							if (logging) { 
+								System.out.print("\nunplayable song "+tempTrack.getName()+" ("+tempTrack.getUri()+") found."); 
+								System.out.print("\nunplayable songs size: " + unplayableSongUrisSet.size());
+							}
 						}
 					}
 					
-					int sizeBefore = likedSongsMap.size();
-					likedSongsMap.put(tempTrack.getName(), tempTrack);
-					if (sizeBefore == likedSongsMap.size()) { // not added bc its a duplicate track name
-						duplicateSongUrisSet.add(tempTrack.getUri());
-						duplicateSongUrisSet.add(likedSongsMap.get(tempTrack.getName()).getUri());
+					if (likedSongsMap.containsKey(tempTrack.getName())) {
+						if (!duplicateSongUrisSet.contains(tempTrack.getUri())) {
+							duplicateCount += 1;
+							duplicateSongUrisSet.add(tempTrack.getUri());
+						} 
+						Track temp0 = likedSongsMap.get(tempTrack.getName());
+						if (!duplicateSongUrisSet.contains(temp0.getUri())) {
+							duplicateCount += 1;
+							duplicateSongUrisSet.add(temp0.getUri());
+						} 
+					} else {
+						likedCount += 1;
+						likedSongsMap.put(tempTrack.getName(), tempTrack);
 					}
 				}
 			}		
@@ -565,8 +602,16 @@ public class MusicSorter {
 		for (int c = startIndex+1; c < songNameList.size(); c++) {
 			String nextTrackName = songNameList.get(c);
 			if (compareWithoutFeatures(currentTrackName, nextTrackName)) {
-				duplicateSongUrisSet.add(likedSongsMap.get(currentTrackName).getUri());
-				duplicateSongUrisSet.add(likedSongsMap.get(nextTrackName).getUri());
+				Track temp1 = likedSongsMap.get(currentTrackName);
+				if (!duplicateSongUrisSet.contains(temp1.getUri())) {
+					duplicateCount += 1;
+					duplicateSongUrisSet.add(temp1.getUri());
+				} 
+				Track temp2 = likedSongsMap.get(nextTrackName);
+				if (!duplicateSongUrisSet.contains(temp2.getUri())) {
+					duplicateCount += 1;
+					duplicateSongUrisSet.add(temp2.getUri());
+				} 
 			}
 		}
 	}
@@ -616,8 +661,15 @@ public class MusicSorter {
 		int responsecode = conn.getResponseCode();
 		
 		if (responsecode != 200) {
-		    throw new RuntimeException("HttpResponseCode: " + responsecode);
+			if (retryCount > 3) {
+				retryCount = 0;
+				throw new RuntimeException("(retried 3 times) HttpResponseCode: " + responsecode);
+			}
+			System.out.print("HttpResponseCode: " + responsecode + ", retrying getPlaylistIds()...");
+			retryCount += 1;
+			getPlaylistIds(offset); // retry recursively
 		} else {
+			retryCount = 0;
 			JSONObject playlistsJSON = new JSONObject(new JSONTokener(conn.getInputStream()));
 			JSONArray tempPlaylistsArray = playlistsJSON.getJSONArray("items");
 			
@@ -630,6 +682,7 @@ public class MusicSorter {
 				
 					if (playlistJSON.getJSONObject("owner").getString("id").equals(spotifyId) && 
 							!playlistJSON.getString("description").contains("EXCLUDE")) {
+						playlistsCount += 1;
 						playlistsSet.add(new Playlist(playlistJSON.getString("name"),playlistJSON.getString("id")));
 					} 
 				}	
@@ -652,7 +705,6 @@ public class MusicSorter {
 			}
 			
 			for (Playlist P : playlistsSet) {
-//				if (logging) { System.out.print("\nsearching playlist " +playlistId); }
 				getUnlikedSongsFromPlaylist(P);
 			}
 			System.out.println("done.\n");
@@ -683,14 +735,22 @@ public class MusicSorter {
 			int responsecode = conn.getResponseCode();
 			
 			if (responsecode != 200) {
-			    throw new RuntimeException("HttpResponseCode: " + responsecode);
+				if (retryCount > 3) {
+					retryCount = 0;
+					throw new RuntimeException("(retried 3 times) HttpResponseCode: " + responsecode);
+				}
+				System.out.print("HttpResponseCode: " + responsecode + ", retrying getUnlikedSongsFromPlaylist()...");
+				retryCount += 1;
+				offsetC -= 50; // retry recursively
 			} else {
+				retryCount = 0;
 				JSONObject playlistSongsJSON = new JSONObject(new JSONTokener(conn.getInputStream())); 
 				JSONArray tempPlaylistSongsArray = playlistSongsJSON.getJSONArray("items");
 							
 				if (tempPlaylistSongsArray.length() < 1) {
 					playlistCompleted = true;
 					if (localsForP.size() > 0) { 
+						playlistsWithLocalTracksCount += 1;
 						playlistLocalsMap.put(P.getName(), localsForP); 
 						if (logging) {
 							System.out.println("Adding playlist " + P.getName() + " to the playlist map (size = "+playlistLocalsMap.size()+") with " + localsForP.size() + " local songs.");
@@ -726,20 +786,22 @@ public class MusicSorter {
 						tempTrackB.setArtists(tempPlayArtists);
 						
 						if (tempTrackB.isLocal()) {
-							localCount += 1;
-							localsForP.add(tempTrackB.getName());
-//							localSongUrisSet.add(tempTrackB.getUri());
-							if (logging) { 
-								System.out.print("\nlocal song "+tempTrackB.getName()+" ("+tempTrackB.getUri()+") found in playlist "+P.getName()+"."); 
-								System.out.print("\nlocal songs size: " + localCount);
+							if (!localsForP.contains(tempTrackB.getName())) {
+								localCount += 1;
+								localsForP.add(tempTrackB.getName());
+								if (logging) { 
+									System.out.print("\nlocal song "+tempTrackB.getName()+" ("+tempTrackB.getUri()+") found in playlist "+P.getName()+"."); 
+									System.out.print("\nlocal songs size: " + localCount);
+								}
 							}
 						} else if (!likedSongsIdSet.contains(tempTrackB.getTrackId())) { // not in liked
-							if (!unlikedSongUrisSet.add(tempTrackB.getUri())) { 
-								System.out.print("\nunliked song "+tempTrackB.getName()+" ("+tempTrackB.getUri()+") found in playlist "+P.getName()+", but failed to be added to the cache list.");
-								unlikedSongUrisSet.add(tempTrackB.getUri()); // try again
-							} else if (logging) { 
-								System.out.print("\nunliked song "+tempTrackB.getName()+" ("+tempTrackB.getUri()+") found in playlist "+P.getName()+"."); 
-								System.out.print("\nunliked songs size: " + unlikedSongUrisSet.size());
+							if (!unlikedSongUrisSet.contains(tempTrackB.getUri())) {
+								unlikedCount += 1;
+								unlikedSongUrisSet.add(tempTrackB.getUri());
+								if (logging) { 
+									System.out.print("\nunliked song "+tempTrackB.getName()+" ("+tempTrackB.getUri()+") found in playlist "+P.getName()+"."); 
+									System.out.print("\nunliked songs size: " + unlikedSongUrisSet.size());
+								}
 							}
 						}
 					}
@@ -942,11 +1004,16 @@ public class MusicSorter {
 		int responsecode = conn.getResponseCode();
 		
 		if (responsecode > 201) {
-		    throw new RuntimeException("HttpResponseCode: " + responsecode);
+			if (retryCount > 3) {
+				retryCount = 0;
+				throw new RuntimeException("(retried 3 times) HttpResponseCode: " + responsecode);
+			}
+			System.out.print("HttpResponseCode: " + responsecode + ", retrying addSongsToPlaylist()...");
+			retryCount += 1;
+			addSongsToPlaylist(playlistId, songUris); // retry recursively
 		} else {
 			if (Math.random() < .8) { System.out.print("."); } // 80% chance
 		}
-		
 	}
 	
 	private static String createJsonFromUriSet(Set<String> uriSet) {
