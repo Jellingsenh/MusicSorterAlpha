@@ -21,5 +21,7 @@ Also add your Spotify user id to the application.properties file.
 Modify these booleans to modify the usability of the application:
 
 `boolean askToUseCaches = true; // if false, automatically uses them
+
 boolean logging = false; // show log statements
+
 boolean askToMakePlaylists = true; // if false, automatically creates them`
