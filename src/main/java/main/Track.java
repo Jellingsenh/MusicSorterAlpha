@@ -1,11 +1,14 @@
 package main;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 
-public class Track {
+public class Track implements Serializable {
+	private static final long serialVersionUID = 4144541409295680478L;
 	private String name;
 	private String trackId;
+	private String uri;
 	private boolean isLocal;
 	private boolean isPlayable;
 	private List<String> artists;
@@ -61,5 +64,13 @@ public class Track {
 
 	public void setLocal(boolean isLocal) {
 		this.isLocal = isLocal;
+	}
+
+	public String getUri() {
+		return uri;
+	}
+
+	public void setUri(String uri) {
+		this.uri = uri;
 	}
 }
