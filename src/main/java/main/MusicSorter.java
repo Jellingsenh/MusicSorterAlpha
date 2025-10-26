@@ -155,6 +155,8 @@ public class MusicSorter {
 		    String yesOrNo = input.next();
 		    if (yesOrNo.equalsIgnoreCase("y")) {
 		    	makePlaylists();
+		    } else {
+		    	displayLocalTrackInfo();
 		    }
 		} else {
 			makePlaylists();
@@ -401,7 +403,7 @@ public class MusicSorter {
 		    for (Set<String> localsSet : playlistLocalsMap.values()) {
 		    	localCount += localsSet.size();
 		    }
-		    System.out.println("Loaded" + playlistLocalsMap.size() + " playlists with a total of " + localCount +" local songs from the cache."); 
+		    System.out.println("Loaded " + playlistLocalsMap.size() + " playlists with a total of " + localCount +" local songs from the cache."); 
 		} catch (Exception e) {
 		    e.printStackTrace();
 		} finally {
@@ -688,6 +690,16 @@ public class MusicSorter {
 							
 				if (tempPlaylistSongsArray.length() < 1) {
 					playlistCompleted = true;
+					if (localsForP.size() > 0) { 
+						playlistLocalsMap.put(P.getName(), localsForP); 
+						if (logging) {
+							System.out.println("Adding playlist " + P.getName() + " to the playlist map (size = "+playlistLocalsMap.size()+") with " + localsForP.size() + " local songs.");
+						}
+					} else {
+						if (logging) {
+							System.out.println("Not adding playlist " + P.getName() + " to the playlist map (no local songs).");
+						}
+					}
 					return;
 				} else {
 
@@ -733,12 +745,10 @@ public class MusicSorter {
 					}
 				}
 			}
-			
 			offsetC += 50;
 			if (Math.random() < .5) { System.out.print("."); } // 50% chance
 			if (testingMode) { playlistCompleted = true; }
 		}
-		playlistLocalsMap.put(P.getName(), localsForP);
 	}
 	
 	// Create & populate playlists functions:
@@ -785,6 +795,11 @@ public class MusicSorter {
 	}
 	
 	private static void createAndPopulatePlaylistRecursively(String playlistName, Set<String> trackUrisSet, String type) {
+		if (trackUrisSet.size() < 1) {
+			System.out.println("Did not create playlist " + playlistName + " (no " + type + " songs found).");
+			return;
+		}
+		
 		if (trackUrisSet.size() <= maxPlaylistSize) {
 			try {
 				String pId = createMSAPlaylist(playlistName);
@@ -832,12 +847,15 @@ public class MusicSorter {
 		System.out.println("\nLocal tracks (must be added to playlists manually):");
 		 
 		for (String playlistName : playlistLocalsMap.keySet()) {
-			System.out.println("Playlist " + playlistName + ": ");
-			System.out.println("{ ");
-			for (String localName : playlistLocalsMap.get(playlistName)) {
-				System.out.println(localName);
+			Set<String> localNameSet = playlistLocalsMap.get(playlistName);
+			if (localNameSet.size() > 0) {
+				System.out.println("\n  ======>  Playlist: " + playlistName + "  <======  ");
+				System.out.println("{");
+				for (String localName : localNameSet) {
+					System.out.println(localName);
+				}
+				System.out.println("}");
 			}
-			System.out.print("\n }");
 	    }
 	}
 	
