@@ -1,3 +1,8 @@
+// Joshua Haynes
+// Spotify music de-duplicator
+// 22-31 October 2025
+// Maven project, Java 21
+
 package main;
 
 import java.io.Serializable;
@@ -6,13 +11,16 @@ import java.util.List;
 
 public class Track implements Serializable {
 	private static final long serialVersionUID = 4144541409295680478L;
+	
 	private String name;
-	private String trackId;
 	private String uri;
+	private String id;
 	private boolean isLocal;
 	private boolean isPlayable;
-	private List<String> artists;
 	private int duration;
+	private List<String> artists;
+	private int albumTracks;
+	private String albumReleaseDate;
 	
 	public Track() {
 		artists = new ArrayList<String>();
@@ -24,22 +32,6 @@ public class Track implements Serializable {
 
 	public void setName(String name) {
 		this.name = name;
-	}
-
-	public int getDuration() {
-		return duration;
-	}
-
-	public void setDuration(int duration) {
-		this.duration = duration;
-	}
-
-	public String getTrackId() {
-		return trackId;
-	}
-
-	public void setTrackId(String trackId) {
-		this.trackId = trackId;
 	}
 
 	public List<String> getArtists() {
@@ -72,5 +64,37 @@ public class Track implements Serializable {
 
 	public void setUri(String uri) {
 		this.uri = uri;
+	}
+
+	public int getAlbumTracks() {
+		return albumTracks;
+	}
+
+	public void setAlbumTracks(int albumTracks) {
+		this.albumTracks = albumTracks;
+	}
+
+	public String getAlbumReleaseDate() {
+		return albumReleaseDate;
+	}
+
+	public void setAlbumReleaseDate(String albumReleaseDate) {
+		this.albumReleaseDate = albumReleaseDate;
+	}
+
+	public int getDuration() {
+		return duration;
+	}
+
+	public void setDuration(int duration) {
+		this.duration = duration;
+	}
+
+	public String getId() {
+		return id;
+	}
+
+	public void setId(String id) {
+		this.id = id;
 	}
 }
