@@ -15,11 +15,3 @@ Don't forget to include `scope=user-library-read,user-library-modify,playlist-mo
 Add your auth token to the application.properties file.
 
 Also add your Spotify user id to the application.properties file.
-
-------
-
-Modify these booleans to modify the usability of the application:
-
-`boolean askToUseCaches = true; // if false, automatically uses them` <br>
-`boolean logging = false; // show log statements` <br>
-`boolean askToMakePlaylists = true; // if false, automatically creates them` <br>
